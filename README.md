@@ -1,4 +1,4 @@
-# MangaDex Cover Downloader
+# Manga Cover-Page Downloader
 
 A Python script that scans your local manga collection and downloads all available cover pages from MangaDex.
 
