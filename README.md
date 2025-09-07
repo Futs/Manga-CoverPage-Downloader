@@ -127,7 +127,9 @@ Using the "Bouncer -Tokyo Fist-" example:
 2. **Search**: MangaDex API search for "Bouncer Tokyo Fist"
 3. **Result**: https://mangadex.org/title/5356ad15-1012-4867-af98-70478eb8d643/bouncer-tokyo-fist
 4. **Covers**: Downloads all available cover art from the manga's cover gallery
-5. **Output**: `/home/user/Documents/Manga/Cover Pages/Manga/Bouncer -Tokyo Fist-/Bouncer -Tokyo Fist- - Volume 1.jpg`
+5. **Output**:
+   - Volume covers: `/home/user/Documents/Manga/Cover Pages/Manga/Bouncer -Tokyo Fist-/Bouncer -Tokyo Fist- - Volume 1.jpg`
+   - Main cover: `/home/user/Documents/Manga/Cover Pages/Manga/Bouncer -Tokyo Fist-/Bouncer -Tokyo Fist- - Main Cover.jpg`
 
 ## Logging
 
@@ -206,3 +208,22 @@ DOWNLOAD_DELAY=1.0
 ```
 
 With `AUTO_USE_DEFAULTS=true`, the interactive downloader will skip directory selection and use your configured paths automatically.
+
+## Cover Types
+
+The downloader identifies and downloads two types of covers from MangaDx:
+
+### 📚 **Volume Covers**
+- Covers tied to specific volumes
+- Named: `{Manga Title} - Volume {Number}.jpg`
+- Example: `"Solo Leveling - Volume 1.jpg"`
+
+### 🎨 **Main Covers**
+- General manga cover art (not tied to specific volumes)
+- Named: `{Manga Title} - Main Cover.jpg`
+- Example: `"Shamo - Main Cover.jpg"`
+- These are the primary cover images for the manga series
+
+Both types are valuable:
+- **Volume covers** help identify specific volumes in your collection
+- **Main covers** provide the primary series artwork for display/organization

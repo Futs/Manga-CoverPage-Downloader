@@ -203,13 +203,22 @@ class MangaDexCoverDownloader:
             manga_cover_dir = self.cover_dir / manga_title
             manga_cover_dir.mkdir(parents=True, exist_ok=True)
             
-            # Determine filename
+            # Determine filename based on cover type
             if volume:
+                # Volume-specific cover
                 cover_filename = f"{manga_title} - Volume {volume}.jpg"
+                logger.info(f"Volume cover: Volume {volume}")
             else:
-                # Use cover ID as fallback
-                cover_id = cover_data['id']
-                cover_filename = f"{manga_title} - Cover {cover_id}.jpg"
+                # Main manga cover (not tied to specific volume)
+                cover_filename = f"{manga_title} - Main Cover.jpg"
+                logger.info(f"Main manga cover (no volume specified)")
+
+                # If multiple main covers exist, append ID to distinguish them
+                cover_path_check = manga_cover_dir / cover_filename
+                if cover_path_check.exists():
+                    cover_id = cover_data['id']
+                    cover_filename = f"{manga_title} - Main Cover ({cover_id[:8]}).jpg"
+                    logger.info(f"Multiple main covers found, using ID: {cover_id[:8]}")
             
             cover_path = manga_cover_dir / cover_filename
             
@@ -257,7 +266,17 @@ class MangaDexCoverDownloader:
                 return False
             
             logger.info(f"Found {len(covers)} covers for '{manga_title}'")
-            
+
+            # Analyze cover types
+            volume_covers = [c for c in covers if c['attributes'].get('volume')]
+            main_covers = [c for c in covers if not c['attributes'].get('volume')]
+
+            if volume_covers:
+                volumes = [c['attributes']['volume'] for c in volume_covers]
+                logger.info(f"  - {len(volume_covers)} volume covers: {', '.join(volumes)}")
+            if main_covers:
+                logger.info(f"  - {len(main_covers)} main cover(s) (no volume specified)")
+
             # Download each cover
             success_count = 0
             for cover in covers:
