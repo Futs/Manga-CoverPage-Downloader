@@ -17,12 +17,18 @@ A Python script that scans your local manga collection and downloads all availab
 
 ## Setup
 
-1. Run the setup script to create a virtual environment and install dependencies:
+1. **Configure your paths (optional)**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your preferred paths
+   ```
+
+2. Run the setup script to create a virtual environment and install dependencies:
    ```bash
    ./setup.sh
    ```
 
-2. Activate the virtual environment:
+3. Activate the virtual environment:
    ```bash
    source venv/bin/activate
    ```
@@ -175,3 +181,28 @@ The scripts use generic default paths that work on any system:
 - **Flexible input**: Browse, type path, or use defaults
 
 All scripts automatically use these generic defaults while still allowing full customization.
+
+## Configuration (.env file)
+
+You can customize default paths and behavior by creating a `.env` file:
+
+```bash
+cp .env.example .env
+```
+
+### Available Settings:
+
+- **`MANGA_SOURCE_DIR`**: Your manga collection directory
+- **`COVER_DESTINATION_DIR`**: Where to save downloaded covers
+- **`AUTO_USE_DEFAULTS`**: Set to `true` to skip directory prompts
+- **`DOWNLOAD_DELAY`**: Delay between downloads (seconds)
+
+### Example .env:
+```env
+MANGA_SOURCE_DIR=/home/username/Documents/Manga
+COVER_DESTINATION_DIR=/home/username/Documents/Cover-Pages
+AUTO_USE_DEFAULTS=true
+DOWNLOAD_DELAY=1.0
+```
+
+With `AUTO_USE_DEFAULTS=true`, the interactive downloader will skip directory selection and use your configured paths automatically.

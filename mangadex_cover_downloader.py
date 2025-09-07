@@ -22,6 +22,7 @@ import argparse
 import logging
 from urllib.parse import quote
 import re
+from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(
@@ -89,6 +90,41 @@ class MangaDexCoverDownloader:
         title = re.sub(r'\s*-\s*$', '', title)
         title = re.sub(r'\s+', ' ', title).strip()
         return title
+
+    def find_best_manga_match(self, target_title: str, manga_results: List[Dict]) -> Optional[Dict]:
+        """Find the best matching manga from search results."""
+        target_clean = self.clean_manga_title(target_title).lower()
+
+        # First, try to find exact matches
+        for manga in manga_results:
+            for title_data in manga['attributes']['title'].values():
+                if self.clean_manga_title(title_data).lower() == target_clean:
+                    logger.info(f"Found exact match: '{title_data}' for '{target_title}'")
+                    return manga
+
+        # If no exact match, find the best partial match
+        best_match = None
+        best_score = 0
+
+        for manga in manga_results:
+            for title_data in manga['attributes']['title'].values():
+                clean_title = self.clean_manga_title(title_data).lower()
+
+                # Calculate similarity score
+                if target_clean in clean_title or clean_title in target_clean:
+                    # Prefer shorter titles (more specific matches)
+                    score = len(target_clean) / max(len(clean_title), 1)
+
+                    # Boost score for titles that start with the target
+                    if clean_title.startswith(target_clean):
+                        score += 0.5
+
+                    if score > best_score:
+                        best_score = score
+                        best_match = manga
+                        logger.info(f"New best match: '{title_data}' (score: {score:.2f}) for '{target_title}'")
+
+        return best_match
     
     async def search_mangadex(self, title: str) -> Optional[Dict]:
         """Search for manga on MangaDex."""
@@ -115,9 +151,20 @@ class MangaDexCoverDownloader:
                 if not data.get('data'):
                     logger.warning(f"No results found for '{title}'")
                     return None
-                
-                # Return the first result (best match)
-                return data['data'][0]
+
+                # Log all search results for debugging
+                logger.info(f"Found {len(data['data'])} results for '{title}':")
+                for i, manga in enumerate(data['data']):
+                    titles = list(manga['attributes']['title'].values())
+                    logger.info(f"  {i+1}. {titles[0] if titles else 'No title'}")
+
+                # Find the best match instead of just taking the first result
+                best_match = self.find_best_manga_match(title, data['data'])
+                if best_match:
+                    return best_match
+                else:
+                    logger.warning(f"No good match found for '{title}' among {len(data['data'])} results")
+                    return None
                 
         except Exception as e:
             logger.error(f"Error searching for '{title}': {e}")
@@ -264,11 +311,39 @@ class MangaDexCoverDownloader:
 
 
 def get_default_directories() -> Tuple[str, str]:
-    """Get default source and destination directories."""
-    user_home = Path.home()
-    default_manga_dir = str(user_home / "Documents" / "Manga")
-    default_cover_dir = str(user_home / "Documents" / "Cover-Pages")
-    return default_manga_dir, default_cover_dir
+    """Get default source and destination directories from .env file or fallback to defaults."""
+    # Load environment variables from .env file
+    load_dotenv()
+
+    # Get paths from environment variables or use fallback defaults
+    manga_dir = os.getenv('MANGA_SOURCE_DIR')
+    cover_dir = os.getenv('COVER_DESTINATION_DIR')
+
+    # If not set in .env, use fallback defaults
+    if not manga_dir:
+        user_home = Path.home()
+        manga_dir = str(user_home / "Documents" / "Manga")
+
+    if not cover_dir:
+        user_home = Path.home()
+        cover_dir = str(user_home / "Documents" / "Cover-Pages")
+
+    return manga_dir, cover_dir
+
+
+def should_auto_use_defaults() -> bool:
+    """Check if we should automatically use default directories without prompting."""
+    load_dotenv()
+    return os.getenv('AUTO_USE_DEFAULTS', 'false').lower() == 'true'
+
+
+def get_download_delay() -> float:
+    """Get download delay from .env file or use default."""
+    load_dotenv()
+    try:
+        return float(os.getenv('DOWNLOAD_DELAY', '1.0'))
+    except ValueError:
+        return 1.0
 
 
 def prompt_for_directory(prompt_text: str, default_path: Optional[str] = None) -> str:

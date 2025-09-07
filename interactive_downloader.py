@@ -18,7 +18,7 @@ try:
     HAS_TKINTER = True
 except ImportError:
     HAS_TKINTER = False
-from mangadex_cover_downloader import MangaDexCoverDownloader, prompt_for_directory, get_default_directories
+from mangadex_cover_downloader import MangaDexCoverDownloader, prompt_for_directory, get_default_directories, should_auto_use_defaults
 
 def browse_for_folder(title: str, initial_dir: Optional[str] = None) -> str:
     """Open a GUI folder browser dialog."""
@@ -94,25 +94,35 @@ async def main():
     else:
         print("⚠ GUI folder browser not available (tkinter missing)")
     
-    print("=" * 60)
-    print("Directory Selection")
-    print("=" * 60)
-    
     # Get default directories
     default_manga_dir, default_cover_dir = get_default_directories()
-    
-    # Get directories with options
-    manga_dir = get_directory_with_options(
-        "1. Select source directory (containing manga folders)",
-        default_manga_dir
-    )
-    print(f"Selected source: {manga_dir}")
-    
-    cover_dir = get_directory_with_options(
-        "2. Select destination directory (for cover pages)",
-        default_cover_dir
-    )
-    print(f"Selected destination: {cover_dir}")
+
+    # Check if we should auto-use defaults
+    if should_auto_use_defaults():
+        print("=" * 60)
+        print("Using Default Directories (from .env)")
+        print("=" * 60)
+        manga_dir = default_manga_dir
+        cover_dir = default_cover_dir
+        print(f"Source: {manga_dir}")
+        print(f"Destination: {cover_dir}")
+    else:
+        print("=" * 60)
+        print("Directory Selection")
+        print("=" * 60)
+
+        # Get directories with options
+        manga_dir = get_directory_with_options(
+            "1. Select source directory (containing manga folders)",
+            default_manga_dir
+        )
+        print(f"Selected source: {manga_dir}")
+
+        cover_dir = get_directory_with_options(
+            "2. Select destination directory (for cover pages)",
+            default_cover_dir
+        )
+        print(f"Selected destination: {cover_dir}")
     
     print("\nScanning manga directory...")
     manga_list = list_available_manga(manga_dir)
@@ -146,7 +156,6 @@ async def main():
                 results = search_manga(manga_list, search_term)
                 if results:
                     print(f"\nSearch results for '{search_term}' ({len(results)}):")
-                    print(f"DEBUG - Results array: {results}")
                     for i, manga in enumerate(results, 1):
                         print(f"{i:3d}. {manga}")
 
@@ -157,8 +166,7 @@ async def main():
                             idx = int(selection) - 1
                             if 0 <= idx < len(results):
                                 selected_manga = results[idx]
-                                print(f"\nYou selected: {selection} -> {selected_manga}")
-                                print(f"Downloading covers for: {selected_manga}")
+                                print(f"\nDownloading covers for: {selected_manga}")
                                 async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
                                     await downloader.run([selected_manga])
                             else:

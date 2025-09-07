@@ -50,3 +50,7 @@ Thumbs.db
 # Project specific
 
 mangadex_cover_downloader.log
+
+# Environment variables (may contain sensitive paths)
+.env.local
+.env.production
