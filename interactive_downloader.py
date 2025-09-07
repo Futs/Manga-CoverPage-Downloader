@@ -148,6 +148,21 @@ async def main():
                     print(f"\nSearch results for '{search_term}' ({len(results)}):")
                     for i, manga in enumerate(results, 1):
                         print(f"{i:3d}. {manga}")
+
+                    # Allow selection from search results
+                    try:
+                        selection = input(f"\nSelect manga to download (1-{len(results)}) or press Enter to return to menu: ").strip()
+                        if selection:
+                            idx = int(selection) - 1
+                            if 0 <= idx < len(results):
+                                selected_manga = results[idx]
+                                print(f"\nDownloading covers for: {selected_manga}")
+                                async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
+                                    await downloader.run([selected_manga])
+                            else:
+                                print(f"❌ Invalid selection. Please choose 1-{len(results)}")
+                    except ValueError:
+                        print("❌ Invalid input. Please enter a number.")
                 else:
                     print(f"No manga found matching '{search_term}'")
         
