@@ -157,7 +157,7 @@ async def main():
                 if manga_name in manga_list:
                     print(f"\nDownloading covers for: {manga_name}")
                     async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
-                        await downloader.download_manga_covers([manga_name])
+                        await downloader.run([manga_name])
                 else:
                     print(f"❌ '{manga_name}' not found in manga directory")
                     similar = search_manga(manga_list, manga_name)
@@ -171,7 +171,7 @@ async def main():
             if confirm == 'y':
                 print(f"\nDownloading covers for all {len(manga_list)} manga...")
                 async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
-                    await downloader.download_manga_covers(manga_list)
+                    await downloader.run(manga_list)
         
         elif choice == '5':
             manga_dir = get_directory_with_options(
