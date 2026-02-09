@@ -126,28 +126,36 @@ class MangaDexCoverDownloader:
 
         return best_match
     
-    async def search_mangadex(self, title: str) -> Optional[Dict]:
-        """Search for manga on MangaDex."""
+    async def search_mangadex(self, title: str, interactive: bool = False) -> Optional[Dict]:
+        """Search for manga on MangaDex.
+
+        Args:
+            title: The manga title to search for
+            interactive: If True, allow manual selection when no good match is found
+
+        Returns:
+            The selected manga data or None if not found/selected
+        """
         try:
             clean_title = self.clean_manga_title(title)
             search_url = f"{self.api_base}/manga"
-            
+
             params = {
                 'title': clean_title,
                 'limit': 10,
                 'includes[]': ['cover_art', 'author', 'artist'],
                 'contentRating[]': ['safe', 'suggestive', 'erotica', 'pornographic']
             }
-            
+
             logger.info(f"Searching MangaDex for: {clean_title}")
-            
+
             async with self.session.get(search_url, params=params) as response:
                 if response.status != 200:
                     logger.warning(f"Search failed for '{title}': HTTP {response.status}")
                     return None
-                
+
                 data = await response.json()
-                
+
                 if not data.get('data'):
                     logger.warning(f"No results found for '{title}'")
                     return None
@@ -164,11 +172,82 @@ class MangaDexCoverDownloader:
                     return best_match
                 else:
                     logger.warning(f"No good match found for '{title}' among {len(data['data'])} results")
+
+                    # If interactive mode, allow manual selection
+                    if interactive:
+                        return await self.manual_select_manga(title, data['data'])
+
                     return None
-                
+
         except Exception as e:
             logger.error(f"Error searching for '{title}': {e}")
             return None
+
+    async def manual_select_manga(self, original_title: str, manga_results: List[Dict]) -> Optional[Dict]:
+        """Allow user to manually select from search results.
+
+        Args:
+            original_title: The original search title
+            manga_results: List of manga results from MangaDex API
+
+        Returns:
+            The selected manga data or None if user skips
+        """
+        print(f"\n{'='*60}")
+        print(f"Manual Selection Required for: {original_title}")
+        print(f"{'='*60}")
+        print(f"Found {len(manga_results)} results. Please select the correct one:")
+        print()
+
+        # Display all results with details
+        for i, manga in enumerate(manga_results, 1):
+            titles = manga['attributes']['title']
+            # Get primary title (prefer English, then romanized, then any)
+            primary_title = titles.get('en') or titles.get('ja-ro') or list(titles.values())[0]
+
+            # Get alternative titles
+            alt_titles = [t for k, t in titles.items() if t != primary_title]
+
+            print(f"{i}. {primary_title}")
+            if alt_titles:
+                print(f"   Alt: {', '.join(alt_titles[:2])}")  # Show first 2 alt titles
+
+            # Show year if available
+            year = manga['attributes'].get('year')
+            if year:
+                print(f"   Year: {year}")
+            print()
+
+        print(f"0. Skip this manga")
+        print()
+
+        # Get user selection
+        while True:
+            try:
+                choice = input(f"Enter your choice (0-{len(manga_results)}): ").strip()
+
+                if not choice:
+                    continue
+
+                choice_num = int(choice)
+
+                if choice_num == 0:
+                    logger.info(f"User skipped manual selection for '{original_title}'")
+                    return None
+
+                if 1 <= choice_num <= len(manga_results):
+                    selected = manga_results[choice_num - 1]
+                    selected_title = list(selected['attributes']['title'].values())[0]
+                    logger.info(f"User selected: '{selected_title}' for '{original_title}'")
+                    return selected
+                else:
+                    print(f"Invalid choice. Please enter a number between 0 and {len(manga_results)}")
+
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+            except KeyboardInterrupt:
+                print("\nSelection cancelled.")
+                return None
     
     async def get_manga_covers(self, manga_id: str) -> List[Dict]:
         """Get all cover art for a manga."""
@@ -245,26 +324,34 @@ class MangaDexCoverDownloader:
             logger.error(f"Error downloading cover: {e}")
             return False
     
-    async def process_manga(self, manga_title: str) -> bool:
-        """Process a single manga: search and download covers."""
+    async def process_manga(self, manga_title: str, interactive: bool = False) -> bool:
+        """Process a single manga: search and download covers.
+
+        Args:
+            manga_title: The title of the manga to process
+            interactive: If True, allow manual selection when no good match is found
+
+        Returns:
+            True if covers were successfully downloaded, False otherwise
+        """
         try:
             logger.info(f"Processing manga: {manga_title}")
-            
+
             # Search for manga
-            manga_data = await self.search_mangadex(manga_title)
+            manga_data = await self.search_mangadex(manga_title, interactive=interactive)
             if not manga_data:
                 self.stats['errors'] += 1
                 return False
-            
+
             self.stats['found_on_mangadex'] += 1
             manga_id = manga_data['id']
-            
+
             # Get all covers
             covers = await self.get_manga_covers(manga_id)
             if not covers:
                 logger.warning(f"No covers found for '{manga_title}'")
                 return False
-            
+
             logger.info(f"Found {len(covers)} covers for '{manga_title}'")
 
             # Analyze cover types
@@ -284,36 +371,41 @@ class MangaDexCoverDownloader:
                 if await self.download_cover(manga_title, cover, manga_id, volume):
                     success_count += 1
                     self.stats['covers_downloaded'] += 1
-                
+
                 # Rate limiting
                 await asyncio.sleep(self.delay)
-            
+
             logger.info(f"Downloaded {success_count}/{len(covers)} covers for '{manga_title}'")
             return success_count > 0
-            
+
         except Exception as e:
             logger.error(f"Error processing manga '{manga_title}': {e}")
             self.stats['errors'] += 1
             return False
     
-    async def run(self, manga_list: Optional[List[str]] = None) -> None:
-        """Main execution method."""
+    async def run(self, manga_list: Optional[List[str]] = None, interactive: bool = False) -> None:
+        """Main execution method.
+
+        Args:
+            manga_list: List of manga titles to process. If None, uses local manga list.
+            interactive: If True, allow manual selection when no good match is found
+        """
         if manga_list is None:
             manga_list = self.get_local_manga_list()
-        
+
         self.stats['total_manga'] = len(manga_list)
-        
+
         logger.info(f"Starting to process {len(manga_list)} manga")
-        
+
         for i, manga_title in enumerate(manga_list, 1):
             logger.info(f"Progress: {i}/{len(manga_list)} - {manga_title}")
-            
-            await self.process_manga(manga_title)
-            
+
+            await self.process_manga(manga_title, interactive=interactive)
+
             # Rate limiting between manga
             if i < len(manga_list):
                 await asyncio.sleep(self.delay)
-        
+
         # Print final statistics
         self.print_stats()
     
@@ -414,6 +506,8 @@ async def main():
                        help='Specific manga to process (by folder name)')
     parser.add_argument('--interactive', action='store_true',
                        help='Prompt for directories interactively')
+    parser.add_argument('--manual-select', action='store_true',
+                       help='Enable manual selection when no good match is found')
 
     args = parser.parse_args()
 
@@ -438,7 +532,7 @@ async def main():
         cover_dir = args.cover_dir
 
     async with MangaDexCoverDownloader(manga_dir, cover_dir, args.delay) as downloader:
-        await downloader.run(args.manga)
+        await downloader.run(args.manga, interactive=args.manual_select)
 
 
 if __name__ == "__main__":

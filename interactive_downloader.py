@@ -168,7 +168,7 @@ async def main():
                                 selected_manga = results[idx]
                                 print(f"\nDownloading covers for: {selected_manga}")
                                 async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
-                                    await downloader.run([selected_manga])
+                                    await downloader.run([selected_manga], interactive=True)
                             else:
                                 print(f"❌ Invalid selection. Please choose 1-{len(results)}")
                     except ValueError:
@@ -182,7 +182,7 @@ async def main():
                 if manga_name in manga_list:
                     print(f"\nDownloading covers for: {manga_name}")
                     async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
-                        await downloader.run([manga_name])
+                        await downloader.run([manga_name], interactive=True)
                 else:
                     print(f"❌ '{manga_name}' not found in manga directory")
                     similar = search_manga(manga_list, manga_name)
@@ -194,9 +194,11 @@ async def main():
         elif choice == '4':
             confirm = input(f"Download covers for all {len(manga_list)} manga? (y/N): ").strip().lower()
             if confirm == 'y':
+                interactive_mode = input("Enable interactive mode for manual selection? (y/N): ").strip().lower()
+                use_interactive = interactive_mode == 'y'
                 print(f"\nDownloading covers for all {len(manga_list)} manga...")
                 async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
-                    await downloader.run(manga_list)
+                    await downloader.run(manga_list, interactive=use_interactive)
         
         elif choice == '5':
             manga_dir = get_directory_with_options(
