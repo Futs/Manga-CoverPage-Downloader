@@ -177,19 +177,22 @@ async def main():
                     print(f"No manga found matching '{search_term}'")
         
         elif choice == '3':
-            manga_name = input("Enter manga name: ").strip()
-            if manga_name:
-                if manga_name in manga_list:
-                    print(f"\nDownloading covers for: {manga_name}")
-                    async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
-                        await downloader.run([manga_name], interactive=True)
+            try:
+                selection = input(f"Enter manga number (1-{len(manga_list)}): ").strip()
+                if selection:
+                    idx = int(selection) - 1
+                    if 0 <= idx < len(manga_list):
+                        manga_name = manga_list[idx]
+                        print(f"\nDownloading covers for: {manga_name}")
+                        async with MangaDexCoverDownloader(manga_dir, cover_dir) as downloader:
+                            await downloader.run([manga_name], interactive=True)
+                    else:
+                        print(f"❌ Invalid selection. Please choose 1-{len(manga_list)}")
                 else:
-                    print(f"❌ '{manga_name}' not found in manga directory")
-                    similar = search_manga(manga_list, manga_name)
-                    if similar:
-                        print("Did you mean one of these?")
-                        for manga in similar[:5]:
-                            print(f"  - {manga}")
+                    print("❌ Please enter a number.")
+            except ValueError:
+                print("❌ Invalid input. Please enter a number.")
+
         
         elif choice == '4':
             confirm = input(f"Download covers for all {len(manga_list)} manga? (y/N): ").strip().lower()
